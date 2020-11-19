@@ -17,11 +17,8 @@ def say_hello(message, say):
 @bot.event("app_home_opened")
 def update_home_tab(client, event, logger):
     try:
-        # Call views.publish with the built-in client
         client.views_publish(
-            # Use the user ID associated with the event
             user_id=event["user"],
-            # Home tabs must be enabled in your app configuration
             view={
                 "type": "home",
                 "blocks": [
@@ -61,29 +58,18 @@ def update_home_tab(client, event, logger):
 
 @bot.action("button_abc")
 def open_modal(ack, body, client):
-    # Acknowledge the command request
     ack()
-    # Call views_open with the built-in client
     client.views_open(
-        # Pass a valid trigger_id within 3 seconds of receiving it
         trigger_id=body["trigger_id"],
-        # View payload
         view={
             "type": "modal",
-            # View identifier
-            "callback_id": "view_1",
+            "callback_id": "weekly_checkin_view",
             "title": {"type": "plain_text", "text": "Weekly Check In"},
             "submit": {"type": "plain_text", "text": "Submit"},
             "blocks": [
-                # {
-                #     "type": "section",
-                #     "text": {"type": "mrkdwn", "text": "Welcome to a modal with _blocks_"},
-                #     "accessory": {
-                #         "type": "button",
-                #         "text": {"type": "plain_text", "text": "Click me!"},
-                #         "action_id": "button_abc"
-                #     }
-                # },
+                {
+                    "type": "divider"
+                },
                 {
                     "type": "input",
                     "block_id": "block_recent_accomplishments",
@@ -97,51 +83,114 @@ def open_modal(ack, body, client):
                 {
                     "type": "input",
                     "block_id": "block_any_blockers",
-                    "label": {"type": "plain_text", "text": "Do you have any blockers?"},
+                    "label": {"type": "plain_text", "text": "What would you like to escalate?"},
                     "element": {
                         "type": "plain_text_input",
-                        "action_id": "any_blockers",
-                        "multiline": True
-                    }
-                },
-                # {
-                #     "label": "What are the top 3 things that causing you frustration?",
-                #     "type": "select",
-                #     "name": "frustrating_things",
-
-                {
-                    "type": "input",
-                    "block_id": "block_working_things",
-                    "label": {"type": "plain_text", "text": "What are the top 3 things that are working for you?"},
-                    "element": {
-                        "type": "plain_text_input",
-                        "action_id": "working_things",
-                        "multiline": True
-                    }
-                },
-                {
-                    "type": "input",
-                    "block_id": "block_frustrating_things",
-                    "label": {"type": "plain_text", "text": "What are the top 3 things that causing you frustration?"},
-                    "element": {
-                        "type": "plain_text_input",
-                        "action_id": "frustrating_things",
+                        "action_id": "any_escalations",
                         "multiline": True
                     }
                 },
                 {
                     "type": "section",
-                    "block_id": "section678",
+                    "block_id": "block_good_stuff",
                     "text": {
                             "type": "mrkdwn",
-                                "text": "Pick items from the list"
+                                "text": "*What things are working for you?*"
                     },
                     "accessory": {
-                        "action_id": "text1234",
+                        "action_id": "text_good_stuff",
                         "type": "multi_static_select",
                         "placeholder": {
                                 "type": "plain_text",
-                                "text": "Select items"
+                                "text": "Select "
+                        },
+                        "options": [
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Great partner team"
+                                },
+                                "value": "Great partner team"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Reasonable workload"
+                                },
+                                "value": "Reasonable workload"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Strong partner support"
+                                },
+                                "value": "Strong partner support"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Clear requirements & priorities"
+                                },
+                                "value": "Clear requirements & priorities"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Preferred Tech Stack"
+                                },
+                                "value": "Preferred Tech Stack"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Andela Policies"
+                                },
+                                "value": "Andela Policies"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Promotions and Compensation"
+                                },
+                                "value": "Promotions and Compensation"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Lack of Growth"
+                                },
+                                "value": "Lack of Growth"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Work-From-Home Setup"
+                                },
+                                "value": "Work-From-Home Setup"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Work-Life Balance"
+                                },
+                                "value": "Work-Life Balance"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "type": "section",
+                    "block_id": "block_frustrations",
+                    "text": {
+                            "type": "mrkdwn",
+                                "text": "*What things are causing you frustration?*"
+                    },
+                    "accessory": {
+                        "action_id": "text_frustrations",
+                        "type": "multi_static_select",
+                        "placeholder": {
+                                "type": "plain_text",
+                                "text": "Select "
                         },
                         "options": [
                             {
@@ -161,37 +210,58 @@ def open_modal(ack, body, client):
                             {
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "Partner support issues"
+                                    "text": "Unclear requirements and priorities"
                                 },
-                                "value": "Partner support issues"
+                                "value": "Unclear requirements and priorities"
                             },
                             {
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "Partner support issues"
+                                    "text": "Not my preferred tech stack"
                                 },
-                                "value": "Partner support issues"
+                                "value": "Not my preferred tech stack"
                             },
                             {
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "Partner support issues"
+                                    "text": "Lack of work"
                                 },
-                                "value": "Partner support issues"
+                                "value": "Lack of work"
                             },
                             {
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "Partner support issues"
+                                    "text": "Andela Policies"
                                 },
-                                "value": "Partner support issues"
+                                "value": "Andela Policies"
                             },
                             {
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "Partner support issues"
+                                    "text": "Promotions and Compensation"
                                 },
-                                "value": "Partner support issues"
+                                "value": "Promotions and Compensation"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Lack of Growth"
+                                },
+                                "value": "Lack of Growth"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Work-From-Home Setup"
+                                },
+                                "value": "Work-From-Home Setup"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Work-Life Balance"
+                                },
+                                "value": "Work-Life Balance"
                             }
                         ]
                     }
@@ -201,46 +271,48 @@ def open_modal(ack, body, client):
     )
 
 
-                #         {
-                #             "label": "Unfair workload",
-                #             "value": "Unfair_workload"
-                #         }
-                #         # {
-                #         #     "label": "Partner support issues",
-                #         #     "value": "Partner support issues"
-                #         # },
-                #         # {
-                #         #     "label": "Unclear requirements and priorities",
-                #         #     "value": "Unclear requirements and priorities"
-                #         # },
-                #         # {
-                #         #     "label": "Not my preferred tech stack",
-                #         #     "value": "Not my preferred tech stack"
-                #         # }, {
-                #         #     "label": "Lack of work",
-                #         #     "value": "Lack of work"
-                #         # }, {
-                #         #     "label": "Andela Policies",
-                #         #     "value": "Andela Policies"
-                #         # }, {
-                #         #     "label": "Promotions and Compensation",
-                #         #     "value": "Promotions and Compensation"
-                #         # }, {
-                #         #     "label": "Lack of Growth",
-                #         #     "value": "Lack of Growth"
-                #         # }, {
-                #         #     "label": "Work-From-Home Setup",
-                #         #     "value": "Work-From-Home Setup"
-                #         # }, {
-                #         #     "label": "Work-Life Balance",
-                #         #     "value": "Work-Life Balance"
-                #         # }
-                #     ]
-                # },
-
-bot.action("button_abc")
-
-
-def select_user(ack, action, respond):
+    # Handle a view_submission event
+@bot.view("weekly_checkin_view")
+def handle_submission(ack, body, client, view):
+    # Assume there's an input block with `block_1` as the block_id and `input_a`
+    print(view["state"]["values"])
+    val = 'Done'
+    # val = view["state"]["values"]["block_1"]["input_a"]
+    user = body["user"]["id"]
+    username = body["user"]["username"]
+    # # Validate the inputs
+    errors = {}
+    if val is not None and len(val) <= 5:
+        errors["block_1"] = "The value must be longer than 5 characters"
+    if len(errors) > 0:
+        ack(response_action="errors", errors=errors)
+        return
+    # Acknowledge the view_submission event and close the modal
     ack()
-    respond(f"You selected <@{action['selected_user']}>")
+    # Do whatever you want with the input data - here we're saving it to a DB
+    # then sending the user a verification of their submission
+
+    # Message to send user
+    msg = ""
+    try:
+        # Save to DB
+        msg = f"Hey, @{username}submission of {val} was successful"
+    except Exception as e:
+        # Handle error
+        msg = "There was an error with your submission"
+    finally:
+        # Message the user
+        client.chat_postMessage(channel=user, text=msg)
+
+
+# Listens to actions triggered with action_id of “user_select”
+@bot.action("text_frustrations")
+def select_frustrations(ack, action, respond):
+    ack()
+    # respond(f"You selected <@{action['selected_user']}>")
+
+@bot.action("text_good_stuff")
+def select_good_stuff(ack, action, respond):
+    ack()
+    # respond(f"You selected <@{action['selected_user']}>")
+

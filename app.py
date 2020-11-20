@@ -1,5 +1,5 @@
 from flask import Flask, request
-from config import PORT
+from src.config import PORT
 from src.bot import bot
 from slack_bolt.adapter.flask import SlackRequestHandler
 import logging

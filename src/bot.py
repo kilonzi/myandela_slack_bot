@@ -1,12 +1,13 @@
 import requests
-from config import SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET
+from .config import SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET
 from slack_bolt import App
-
+from .db import save_check_in
 
 bot = App(
     token=SLACK_BOT_TOKEN,
     signing_secret=SLACK_SIGNING_SECRET
 )
+
 
 @bot.event("app_home_opened")
 def update_home_tab(client, event, logger):
@@ -323,34 +324,21 @@ def open_modal(ack, body, client):
 @bot.view("weekly_checkin_view")
 def handle_submission(ack, body, client, view):
     ack()
-    # Do whatever you want with the input data - here we're saving it to a DB
-    # then sending the user a verification of their submission
-    acknowledge_submission(client, body)
-    return {
-        "response_action": "errors",
-        "errors": {
-            "ticket-due-date": "You may not select a due date in the past"
-        }
-    }
+    respond_to_submission(client, body)
+    return save_check_in(body)
 
 
-def acknowledge_submission(client, body):
+def respond_to_submission(client, body):
     user = body["user"]["id"]
     username = body["user"]["username"]
-    # Message to send user
     msg = ""
     try:
-        # Save to DB
         msg = f"Hey, <@{username}> submission of was successful. We will review and get back to you if we have any questions"
     except Exception as e:
-        # Handle error
         msg = "There was an error with your submission"
     finally:
-        # Message the user
         client.chat_postMessage(channel=user, text=msg)
 
-
-# Listens to actions triggered with action_id of “user_select”
 @bot.action("text_frustrations")
 def select_frustrations(ack, action, respond, say):
     ack()

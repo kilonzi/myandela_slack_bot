@@ -1,18 +1,12 @@
+import requests
 from config import SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET
 from slack_bolt import App
+
 
 bot = App(
     token=SLACK_BOT_TOKEN,
     signing_secret=SLACK_SIGNING_SECRET
 )
-
-
-@bot.message("message")
-def say_hello(message, say):
-    print(message)
-    user = message['user']
-    say(f"Hi there, <@{user}>!")
-
 
 @bot.event("app_home_opened")
 def update_home_tab(client, event, logger):
@@ -37,17 +31,31 @@ def update_home_tab(client, event, logger):
                         }
                     },
                     {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "*Fill your Weekly Check In*"
-                        },
-                        "accessory": {
-                            "type": "button",
-                            "text": {"type": "plain_text", "text": "Fill Form"},
-                            "action_id": "button_abc"
-                        },
+                        "type": "actions",
+                        "elements": [
+                                {
+                                    "type": "button",
+                                    "text": {
+                                            "type": "plain_text",
+                                        "text": "Fill your Check In"
+                                    },
+                                    "style": "primary",
+                                    "action_id": "submit_weekly_check_in_button"
+                                }
+                        ]
                     }
+                    # {
+                    #     "type": "section",
+                    #     "text": {
+                    #         "type": "mrkdwn",
+                    #         "text": "*Fill your Weekly Check In*"
+                    #     },
+                    #     "accessory": {
+                    #         "type": "button",
+                    #         "text": {"type": "plain_text", "text": "Fill Form"},
+                    #         "action_id": "submit_weekly_check_in_button"
+                    #     },
+                    # }
                 ]
             }
         )
@@ -56,8 +64,10 @@ def update_home_tab(client, event, logger):
         logger.error(f"Error opening modal: {e}")
 
 
-@bot.action("button_abc")
+@bot.action("submit_weekly_check_in_button")
 def open_modal(ack, body, client):
+    # user = body['user']['id']
+    username = body['user']['username']
     ack()
     client.views_open(
         trigger_id=body["trigger_id"],
@@ -71,25 +81,33 @@ def open_modal(ack, body, client):
                     "type": "divider"
                 },
                 {
-                    "type": "input",
-                    "block_id": "block_recent_accomplishments",
-                    "label": {"type": "plain_text", "text": "What did you accomplish in the last 7 days"},
-                    "element": {
-                        "type": "plain_text_input",
-                        "action_id": "recent_accomplishments",
-                        "multiline": True
+                    "type": "section",
+                    "text": {
+                            "type": "plain_text",
+                        "text": ":wave: Hey <@"+username+">!\n\nWe'd love to hear from you how we can make this place the best place you’ve ever worked.",
+                                "emoji": True
                     }
                 },
                 {
+                    "type": "divider"
+                },
+                {
                     "type": "input",
-                    "block_id": "block_any_blockers",
-                    "label": {"type": "plain_text", "text": "What would you like to escalate?"},
+                    "block_id": "block_recommend",
+                    "label": {
+                        "type": "plain_text",
+                        "text": "On a scale of 0 - 10, How likely is it you would recommend Andela as a place to work? (0 = Not at all, 10 = Absolutely)"},
                     "element": {
                         "type": "plain_text_input",
-                        "action_id": "any_escalations",
-                        "multiline": True
+                        "action_id": "recommend_work",
+                        "multiline": False,
+                        "placeholder": {
+                            "type": "plain_text",
+                            "text": "Your score"
+                        }
                     }
                 },
+
                 {
                     "type": "section",
                     "block_id": "block_good_stuff",
@@ -265,38 +283,65 @@ def open_modal(ack, body, client):
                             }
                         ]
                     }
-                }
+                },
+                {
+                    "type": "input",
+                    "block_id": "block_recent_accomplishments",
+                    "label": {"type": "plain_text", "text": "What did you accomplish in the last 7 days?"},
+                    "element": {
+                        "type": "plain_text_input",
+                        "action_id": "recent_accomplishments",
+                        "multiline": True,
+                        "placeholder": {
+                            "type": "plain_text",
+                            "text": "My most recent accomplishments are :-"
+                        }
+                    }
+                },
+                {
+                    "type": "input",
+                    "block_id": "block_any_blockers",
+                    "label": {"type": "plain_text", "text": "What would you like to escalate?"},
+                    "optional": True,
+                    "element": {
+                        "type": "plain_text_input",
+                        "action_id": "any_escalations",
+                        "multiline": True,
+                        "placeholder": {
+                            "type": "plain_text",
+                            "text": "I would like to escalate"
+                        }
+                    }
+                },
             ]
         }
     )
 
-
     # Handle a view_submission event
+
+
 @bot.view("weekly_checkin_view")
 def handle_submission(ack, body, client, view):
-    # Assume there's an input block with `block_1` as the block_id and `input_a`
-    print(view["state"]["values"])
-    val = 'Done'
-    # val = view["state"]["values"]["block_1"]["input_a"]
-    user = body["user"]["id"]
-    username = body["user"]["username"]
-    # # Validate the inputs
-    errors = {}
-    if val is not None and len(val) <= 5:
-        errors["block_1"] = "The value must be longer than 5 characters"
-    if len(errors) > 0:
-        ack(response_action="errors", errors=errors)
-        return
-    # Acknowledge the view_submission event and close the modal
     ack()
     # Do whatever you want with the input data - here we're saving it to a DB
     # then sending the user a verification of their submission
+    acknowledge_submission(client, body)
+    return {
+        "response_action": "errors",
+        "errors": {
+            "ticket-due-date": "You may not select a due date in the past"
+        }
+    }
 
+
+def acknowledge_submission(client, body):
+    user = body["user"]["id"]
+    username = body["user"]["username"]
     # Message to send user
     msg = ""
     try:
         # Save to DB
-        msg = f"Hey, @{username}submission of {val} was successful"
+        msg = f"Hey, <@{username}> submission of was successful. We will review and get back to you if we have any questions"
     except Exception as e:
         # Handle error
         msg = "There was an error with your submission"
@@ -307,12 +352,23 @@ def handle_submission(ack, body, client, view):
 
 # Listens to actions triggered with action_id of “user_select”
 @bot.action("text_frustrations")
-def select_frustrations(ack, action, respond):
+def select_frustrations(ack, action, respond, say):
     ack()
-    # respond(f"You selected <@{action['selected_user']}>")
+
 
 @bot.action("text_good_stuff")
-def select_good_stuff(ack, action, respond):
+def select_good_stuff(ack, action, respond, say):
     ack()
-    # respond(f"You selected <@{action['selected_user']}>")
 
+
+@bot.action("recommend_work")
+def recommend_work(ack, action, respond, say):
+    print(action)
+    ack()
+
+
+def respond_back(url):
+    data = {
+        "text": "Thanks for your request, we'll process it and get back to you."
+    }
+    return requests.post(url, data=data)

@@ -1,5 +1,7 @@
-from config import SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET
+import requests
+from .config import SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET
 from slack_bolt import App
+from .db import save_check_in
 
 bot = App(
     token=SLACK_BOT_TOKEN,
@@ -7,21 +9,11 @@ bot = App(
 )
 
 
-@bot.message("message")
-def say_hello(message, say):
-    print(message)
-    user = message['user']
-    say(f"Hi there, <@{user}>!")
-
-
 @bot.event("app_home_opened")
 def update_home_tab(client, event, logger):
     try:
-        # Call views.publish with the built-in client
         client.views_publish(
-            # Use the user ID associated with the event
             user_id=event["user"],
-            # Home tabs must be enabled in your app configuration
             view={
                 "type": "home",
                 "blocks": [
@@ -40,17 +32,31 @@ def update_home_tab(client, event, logger):
                         }
                     },
                     {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "*Fill your Weekly Check In*"
-                        },
-                        "accessory": {
-                            "type": "button",
-                            "text": {"type": "plain_text", "text": "Fill Form"},
-                            "action_id": "button_abc"
-                        },
+                        "type": "actions",
+                        "elements": [
+                                {
+                                    "type": "button",
+                                    "text": {
+                                            "type": "plain_text",
+                                        "text": "Fill your Check In"
+                                    },
+                                    "style": "primary",
+                                    "action_id": "submit_weekly_check_in_button"
+                                }
+                        ]
                     }
+                    # {
+                    #     "type": "section",
+                    #     "text": {
+                    #         "type": "mrkdwn",
+                    #         "text": "*Fill your Weekly Check In*"
+                    #     },
+                    #     "accessory": {
+                    #         "type": "button",
+                    #         "text": {"type": "plain_text", "text": "Fill Form"},
+                    #         "action_id": "submit_weekly_check_in_button"
+                    #     },
+                    # }
                 ]
             }
         )
@@ -59,89 +65,151 @@ def update_home_tab(client, event, logger):
         logger.error(f"Error opening modal: {e}")
 
 
-@bot.action("button_abc")
+@bot.action("submit_weekly_check_in_button")
 def open_modal(ack, body, client):
-    # Acknowledge the command request
+    # user = body['user']['id']
+    username = body['user']['username']
     ack()
-    # Call views_open with the built-in client
     client.views_open(
-        # Pass a valid trigger_id within 3 seconds of receiving it
         trigger_id=body["trigger_id"],
-        # View payload
         view={
             "type": "modal",
-            # View identifier
-            "callback_id": "view_1",
+            "callback_id": "weekly_checkin_view",
             "title": {"type": "plain_text", "text": "Weekly Check In"},
             "submit": {"type": "plain_text", "text": "Submit"},
             "blocks": [
-                # {
-                #     "type": "section",
-                #     "text": {"type": "mrkdwn", "text": "Welcome to a modal with _blocks_"},
-                #     "accessory": {
-                #         "type": "button",
-                #         "text": {"type": "plain_text", "text": "Click me!"},
-                #         "action_id": "button_abc"
-                #     }
-                # },
                 {
-                    "type": "input",
-                    "block_id": "block_recent_accomplishments",
-                    "label": {"type": "plain_text", "text": "What did you accomplish in the last 7 days"},
-                    "element": {
-                        "type": "plain_text_input",
-                        "action_id": "recent_accomplishments",
-                        "multiline": True
+                    "type": "divider"
+                },
+                {
+                    "type": "section",
+                    "text": {
+                            "type": "plain_text",
+                        "text": ":wave: Hey <@"+username+">!\n\nWe'd love to hear from you how we can make this place the best place you’ve ever worked.",
+                                "emoji": True
                     }
                 },
                 {
+                    "type": "divider"
+                },
+                {
                     "type": "input",
-                    "block_id": "block_any_blockers",
-                    "label": {"type": "plain_text", "text": "Do you have any blockers?"},
+                    "block_id": "block_recommend",
+                    "label": {
+                        "type": "plain_text",
+                        "text": "On a scale of 0 - 10, How likely is it you would recommend Andela as a place to work? (0 = Not at all, 10 = Absolutely)"},
                     "element": {
                         "type": "plain_text_input",
-                        "action_id": "any_blockers",
-                        "multiline": True
+                        "action_id": "recommend_work",
+                        "multiline": False,
+                        "placeholder": {
+                            "type": "plain_text",
+                            "text": "Your score"
+                        }
                     }
                 },
-                # {
-                #     "label": "What are the top 3 things that causing you frustration?",
-                #     "type": "select",
-                #     "name": "frustrating_things",
 
                 {
-                    "type": "input",
-                    "block_id": "block_working_things",
-                    "label": {"type": "plain_text", "text": "What are the top 3 things that are working for you?"},
-                    "element": {
-                        "type": "plain_text_input",
-                        "action_id": "working_things",
-                        "multiline": True
-                    }
-                },
-                {
-                    "type": "input",
-                    "block_id": "block_frustrating_things",
-                    "label": {"type": "plain_text", "text": "What are the top 3 things that causing you frustration?"},
-                    "element": {
-                        "type": "plain_text_input",
-                        "action_id": "frustrating_things",
-                        "multiline": True
+                    "type": "section",
+                    "block_id": "block_good_stuff",
+                    "text": {
+                            "type": "mrkdwn",
+                                "text": "*What things are working for you?*"
+                    },
+                    "accessory": {
+                        "action_id": "text_good_stuff",
+                        "type": "multi_static_select",
+                        "placeholder": {
+                                "type": "plain_text",
+                                "text": "Select "
+                        },
+                        "options": [
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Great partner team"
+                                },
+                                "value": "Great partner team"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Reasonable workload"
+                                },
+                                "value": "Reasonable workload"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Strong partner support"
+                                },
+                                "value": "Strong partner support"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Clear requirements & priorities"
+                                },
+                                "value": "Clear requirements & priorities"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Preferred Tech Stack"
+                                },
+                                "value": "Preferred Tech Stack"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Andela Policies"
+                                },
+                                "value": "Andela Policies"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Promotions and Compensation"
+                                },
+                                "value": "Promotions and Compensation"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Lack of Growth"
+                                },
+                                "value": "Lack of Growth"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Work-From-Home Setup"
+                                },
+                                "value": "Work-From-Home Setup"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Work-Life Balance"
+                                },
+                                "value": "Work-Life Balance"
+                            }
+                        ]
                     }
                 },
                 {
                     "type": "section",
-                    "block_id": "section678",
+                    "block_id": "block_frustrations",
                     "text": {
                             "type": "mrkdwn",
-                                "text": "Pick items from the list"
+                                "text": "*What things are causing you frustration?*"
                     },
                     "accessory": {
-                        "action_id": "text1234",
+                        "action_id": "text_frustrations",
                         "type": "multi_static_select",
                         "placeholder": {
                                 "type": "plain_text",
-                                "text": "Select items"
+                                "text": "Select "
                         },
                         "options": [
                             {
@@ -161,86 +229,134 @@ def open_modal(ack, body, client):
                             {
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "Partner support issues"
+                                    "text": "Unclear requirements and priorities"
                                 },
-                                "value": "Partner support issues"
+                                "value": "Unclear requirements and priorities"
                             },
                             {
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "Partner support issues"
+                                    "text": "Not my preferred tech stack"
                                 },
-                                "value": "Partner support issues"
+                                "value": "Not my preferred tech stack"
                             },
                             {
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "Partner support issues"
+                                    "text": "Lack of work"
                                 },
-                                "value": "Partner support issues"
+                                "value": "Lack of work"
                             },
                             {
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "Partner support issues"
+                                    "text": "Andela Policies"
                                 },
-                                "value": "Partner support issues"
+                                "value": "Andela Policies"
                             },
                             {
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "Partner support issues"
+                                    "text": "Promotions and Compensation"
                                 },
-                                "value": "Partner support issues"
+                                "value": "Promotions and Compensation"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Lack of Growth"
+                                },
+                                "value": "Lack of Growth"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Work-From-Home Setup"
+                                },
+                                "value": "Work-From-Home Setup"
+                            },
+                            {
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Work-Life Balance"
+                                },
+                                "value": "Work-Life Balance"
                             }
                         ]
                     }
-                }
+                },
+                {
+                    "type": "input",
+                    "block_id": "block_recent_accomplishments",
+                    "label": {"type": "plain_text", "text": "What did you accomplish in the last 7 days?"},
+                    "element": {
+                        "type": "plain_text_input",
+                        "action_id": "recent_accomplishments",
+                        "multiline": True,
+                        "placeholder": {
+                            "type": "plain_text",
+                            "text": "My most recent accomplishments are :-"
+                        }
+                    }
+                },
+                {
+                    "type": "input",
+                    "block_id": "block_any_blockers",
+                    "label": {"type": "plain_text", "text": "What would you like to escalate?"},
+                    "optional": True,
+                    "element": {
+                        "type": "plain_text_input",
+                        "action_id": "any_escalations",
+                        "multiline": True,
+                        "placeholder": {
+                            "type": "plain_text",
+                            "text": "I would like to escalate"
+                        }
+                    }
+                },
             ]
         }
     )
 
-
-                #         {
-                #             "label": "Unfair workload",
-                #             "value": "Unfair_workload"
-                #         }
-                #         # {
-                #         #     "label": "Partner support issues",
-                #         #     "value": "Partner support issues"
-                #         # },
-                #         # {
-                #         #     "label": "Unclear requirements and priorities",
-                #         #     "value": "Unclear requirements and priorities"
-                #         # },
-                #         # {
-                #         #     "label": "Not my preferred tech stack",
-                #         #     "value": "Not my preferred tech stack"
-                #         # }, {
-                #         #     "label": "Lack of work",
-                #         #     "value": "Lack of work"
-                #         # }, {
-                #         #     "label": "Andela Policies",
-                #         #     "value": "Andela Policies"
-                #         # }, {
-                #         #     "label": "Promotions and Compensation",
-                #         #     "value": "Promotions and Compensation"
-                #         # }, {
-                #         #     "label": "Lack of Growth",
-                #         #     "value": "Lack of Growth"
-                #         # }, {
-                #         #     "label": "Work-From-Home Setup",
-                #         #     "value": "Work-From-Home Setup"
-                #         # }, {
-                #         #     "label": "Work-Life Balance",
-                #         #     "value": "Work-Life Balance"
-                #         # }
-                #     ]
-                # },
-
-bot.action("button_abc")
+    # Handle a view_submission event
 
 
-def select_user(ack, action, respond):
+@bot.view("weekly_checkin_view")
+def handle_submission(ack, body, client, view):
     ack()
-    respond(f"You selected <@{action['selected_user']}>")
+    respond_to_submission(client, body)
+    return save_check_in(body)
+
+
+def respond_to_submission(client, body):
+    user = body["user"]["id"]
+    username = body["user"]["username"]
+    msg = ""
+    try:
+        msg = f"Hey, <@{username}> submission of was successful. We will review and get back to you if we have any questions"
+    except Exception as e:
+        msg = "There was an error with your submission"
+    finally:
+        client.chat_postMessage(channel=user, text=msg)
+
+@bot.action("text_frustrations")
+def select_frustrations(ack, action, respond, say):
+    ack()
+
+
+@bot.action("text_good_stuff")
+def select_good_stuff(ack, action, respond, say):
+    ack()
+
+
+@bot.action("recommend_work")
+def recommend_work(ack, action, respond, say):
+    print(action)
+    ack()
+
+
+def respond_back(url):
+    data = {
+        "text": "Thanks for your request, we'll process it and get back to you."
+    }
+    return requests.post(url, data=data)

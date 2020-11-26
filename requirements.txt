@@ -1,0 +1,5 @@
+pymongo[srv]
+flask
+requests
+python-dotenv
+slack_bolt
